@@ -88,7 +88,7 @@ class EMO_AE_ELM:
         """
         np.savez(file_name + '.npz', W=self.W, B=self.B)
 
-    def save_evo_result(self, file_name='moea-results'):
+    def save_evo_result(self, file_name='moea-results.npz'):
         """
         save optimized results that contains non-dominanted solution and its objective values
         :param file_name:
@@ -102,7 +102,7 @@ class EMO_AE_ELM:
 
         objectives = np.asarray(objectives)
         solutions = np.asarray(solutions)
-        np.savez(file_name+'.npz', obj=objectives, solution=solutions)
+        np.savez(file_name, obj=objectives, solution=solutions)
 
     def get_best_index(self, mu):
         """

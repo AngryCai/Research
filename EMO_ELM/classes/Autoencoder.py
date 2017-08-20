@@ -20,6 +20,7 @@ class Autoencoder:
         model.compile(optimizer='sgd', loss='mse', metrics=['accuracy'])
         model.fit(X, X, batch_size=16, epochs=self.max_iter,  verbose=0)
         self.model = model
+        return self
 
     def predict(self, X):
         intermediate_layer_model = Model(inputs=self.model.input,

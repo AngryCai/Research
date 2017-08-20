@@ -27,6 +27,7 @@ class SAE:
         model.compile(optimizer='sgd', loss='mse', metrics=['accuracy'])
         model.fit(X, X, batch_size=16, epochs=self.max_iter,  verbose=1)
         self.model = model
+        return self
 
     def predict(self, X):
         intermediate_layer_model = Model(inputs=self.model.input,
@@ -42,25 +43,25 @@ class SAE:
         loss = 0.01 * self.__kl_divergence(0.05, p_hat)
         return 0.01 * K.sum(loss)
 
-from sklearn.datasets import load_iris
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import normalize
-X, y = load_iris(return_X_y=True)
-X = normalize(X)
-
-elm_ae = SAE(20, 100)
-elm_ae.fit(X)
-X_transform = elm_ae.predict(X)
-X_train, X_test, y_train, y_test = train_test_split(X_transform, y, test_size=0.4, random_state=42, stratify=y)
-
-from sklearn.neighbors import KNeighborsClassifier as KNN
-knn_1 = KNN(3)
-knn_1.fit(X_train, y_train)
-y_1 = knn_1.predict(X_test)
-
-# knn_2 = KNN(3)
-# knn_2.fit(X_train, y_train)
-# y_2 = knn_2.predict(X_test)
-acc = accuracy_score(y_test, y_1)
-print(acc)
+# from sklearn.datasets import load_iris
+# from sklearn.model_selection import train_test_split
+# from sklearn.metrics import accuracy_score
+# from sklearn.preprocessing import normalize
+# X, y = load_iris(return_X_y=True)
+# X = normalize(X)
+#
+# elm_ae = SAE(20, 100)
+# elm_ae.fit(X)
+# X_transform = elm_ae.predict(X)
+# X_train, X_test, y_train, y_test = train_test_split(X_transform, y, test_size=0.4, random_state=42, stratify=y)
+#
+# from sklearn.neighbors import KNeighborsClassifier as KNN
+# knn_1 = KNN(3)
+# knn_1.fit(X_train, y_train)
+# y_1 = knn_1.predict(X_test)
+#
+# # knn_2 = KNN(3)
+# # knn_2.fit(X_train, y_train)
+# # y_2 = knn_2.predict(X_test)
+# acc = accuracy_score(y_test, y_1)
+# print(acc)

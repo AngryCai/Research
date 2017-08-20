@@ -1,4 +1,6 @@
-# implementation of Extreme Learning Machine
+"""
+implementation of Extreme Learning Machine
+"""
 import numpy as np
 import copy
 from numpy import linalg
