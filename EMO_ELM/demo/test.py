@@ -16,8 +16,5 @@ knn_1 = KNN(3)
 knn_1.fit(X_train, y_train)
 y_1 = knn_1.predict(X_test)
 
-# knn_2 = KNN(3)
-# knn_2.fit(X_train, y_train)
-# y_2 = knn_2.predict(X_test)
 acc = accuracy_score(y_test, y_1)
 print(acc)
