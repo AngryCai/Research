@@ -11,7 +11,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from EMO_ELM.classes.ELM import BaseELM
 from ExtremeLearningMachine.HE_ELM.Kernel_ELM import KELM
-from EMO_ELM import EMO_ELM, DE_ELM
+from EMO_ELM.classes.EMO_ELM import EMO_ELM, DE_ELM
 from scipy.io import loadmat
 import numpy as np
 

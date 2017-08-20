@@ -1,56 +1,38 @@
 """
-Autoencoder ELM that used to do feature extraction or dimension reduction
-formula:
-    ==> X_ = XB'
-Note that it is a linear transformation based on output weights. Where W and b are orthogonal matrices.
+Implementation of random projection (RP)
+----------------
+X_ = XW
+where W is orthogonal
 """
 import numpy as np
-from scipy.special import expit
 
-class ELM_AE(object):
+
+class RP:
     upper_bound = 1.
     lower_bound = -1.
-    def __init__(self, n_hidden, activation='sigmoid', sparse=False):
-        """
 
-        :param n_hidden:
-        :param activation: linear or nonlinear activation function
-        """
+    def __init__(self, n_hidden, sparse=False):
         self.n_hidden = n_hidden
-        self.activation = activation
         self.sparse = sparse
 
     def fit(self, X):
         if self.sparse is False:
-            W = np.random.uniform(self.lower_bound, self.upper_bound, size=(X.shape[1] + 1, self.n_hidden))
+            W = np.random.uniform(self.lower_bound, self.upper_bound, size=(X.shape[1], self.n_hidden))
         else:
             v1, v2 = (3. / self.n_hidden) ** 0.5, -(3. / self.n_hidden) ** 0.5
-            W = np.zeros((X.shape[1] + 1, self.n_hidden))
+            W = np.zeros((X.shape[1], self.n_hidden))
             W = W.reshape(-1)
             # self.W = np.random.uniform(self.lower_bound, self.upper_bound, size=(X.shape[1] + 1, self.n_hidden))
             W[np.random.choice(range(0, W.size), int(1./6. * W.size))] = v1
             W[np.random.choice(W.nonzero()[0], int(1. / 6. * W.size))] = v2
-            W = W.reshape(X.shape[1] + 1, self.n_hidden)
-
+            W = W.reshape(X.shape[1], self.n_hidden)
         # orthogonalize W and b by QR factorization
         Q, R = np.linalg.qr(W)
         self.orth_W = Q
-        X_ = np.append(X, np.ones((X.shape[0], 1)), axis=1)
-        if self.activation == 'sigmoid':
-            H = expit(np.dot(X_, self.orth_W))
-        if self.activation == 'linear':
-            H = np.dot(X_, self.orth_W)
-        self.B = np.dot(np.linalg.pinv(H), X)
         return self
 
     def predict(self, X):
-        """
-        transform initial X use matrix B
-        :param X:
-        :return:
-        """
-        # X_ = np.append(X, np.ones((X.shape[0], 1)), axis=1)
-        output = np.dot(X, self.B.transpose())
+        output = np.dot(X, self.orth_W)
         return output
 
 # from sklearn.datasets import load_iris
@@ -60,7 +42,7 @@ class ELM_AE(object):
 # X, y = load_iris(return_X_y=True)
 # X = normalize(X)
 #
-# elm_ae = ELM_AE(20, activation='sigmoid', sparse=True)
+# elm_ae = RP(100, sparse=False)
 # elm_ae.fit(X)
 # X_transform = elm_ae.predict(X)
 # X_train, X_test, y_train, y_test = train_test_split(X_transform, y, test_size=0.4, random_state=42, stratify=y)
@@ -75,4 +57,3 @@ class ELM_AE(object):
 # # y_2 = knn_2.predict(X_test)
 # acc = accuracy_score(y_test, y_1)
 # print(acc)
-
