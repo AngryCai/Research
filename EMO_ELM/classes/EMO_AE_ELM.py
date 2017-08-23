@@ -115,18 +115,15 @@ class EMO_AE_ELM:
             v.append(so.variables)
         s = np.asarray(s)
         v = np.asarray(v)
-        curvature = self.curvature_splines(s[:, 0], s[:, 1])
-        index = curvature.argmax()
+        # curvature = self.curvature_splines(s[:, 0], s[:, 1])
+        # index = curvature.argmax()
         # z = 1. / (s[:, 0] + 10e-8) * mu + 1. / (s[:, 1] + 10e-8) * (1. - mu)
         ##########
         # import matplotlib.pyplot as plt
         # ax = plt.figure()
         # sub = ax.add_subplot(111)
         # sub.scatter(s[:, 0], s[:, 1])
-        #
-        # ax_ = plt.figure()
-        # sub_ = ax_.add_subplot(111)
-        # sub_.plot(s[:, 0], curvature)
+        index = s[:, 0].argmin()
         print('find minimum solution at index ', index)
         return index
 
@@ -137,6 +134,14 @@ class EMO_AE_ELM:
         # H = expit(np.dot(X_, self.best_B.transpose()))
         # y = np.dot(H, self.best_B)
         return H
+
+    def predict_linear(self, X):
+        """
+        transform X use transpose of W: X_ = XB'
+        :param X:
+        :return:
+        """
+        return np.dot(X, self.best_B.transpose())
 
     def __get_info(self, X_test, W, B, y_test=None):
         H = expit(np.dot(X_test, W))
@@ -224,7 +229,7 @@ class Objectives(Problem):
         # ## TODO: obj_1: min RSE
         obj1, obj2 = self.obj_func(X, W, n_splits=3)
         solution.objectives[0] = obj1  # self.obj_1(X, W)
-        # ## TODO: obj_2: min L0 norm
+        # ## TODO: obj_2: min KL
         solution.objectives[1] = obj2
 
     def obj_func(self, X, W, n_splits=3):
@@ -255,6 +260,32 @@ class Objectives(Problem):
                 entr = entropy([p1, 1 - p1], [p2, 1 - p2])
                 kl_split += entr
             kl += kl_split
+        return kl/n_splits, error/n_splits
+
+    def obj_func_v2(self, X, W, n_splits=3):
+        """
+        error
+        :param X:
+        :param W:
+        :param n_splits:
+        :return:
+        """
+        # ## TODO: train learner and calculate crossover Root Mean Square Error
+        # skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=233)
+        kf = KFold(n_splits=n_splits)
+        error = 0
+        kl = 0.
+        desired_degree = np.array([self.sparse_degree, ] * self.n_hidden)
+        for train_index, test_index in kf.split(self.X):
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = self.T[train_index], self.T[test_index]
+            H = expit(np.dot(X_train, W))
+            B = np.dot(linalg.pinv(H), y_train)
+            H_ = expit(np.dot(X_test, W))
+            output = np.dot(H_, B)
+            error += np.sqrt(mean_squared_error(y_test, output))
+            S = np.linalg.norm(W, ord=1)#np.linalg.norm(np.dot(X_test[:, :-1], B.transpose()), ord=2)/np.linalg.norm(np.dot(X_test[:, :-1], B.transpose()), ord=1)
+            kl += S
         return kl/n_splits, error/n_splits
 
 

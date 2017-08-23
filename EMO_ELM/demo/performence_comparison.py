@@ -18,8 +18,12 @@ from EMO_ELM.classes.ELM import BaseELM
 from EMO_ELM.classes.ELM_AE import ELM_AE
 from EMO_ELM.classes.EMO_AE_ELM import EMO_AE_ELM
 from EMO_ELM.classes.RandomProjection import RP
+from EMO_ELM.classes.Helper import Helper
 from EMO_ELM.classes.SparseAE import SAE
 from Toolbox.Preprocessing import Processor
+from sklearn import random_projection
+from sklearn.decomposition import NMF, SparsePCA
+import time
 
 ############################
 #      prepare data
@@ -71,34 +75,62 @@ max_iter = 2000
 '''
 step 2: train models
 '''
-# random projection
-instance_rp = RP(n_hidden)
-X_projection_rp = instance_rp.fit(X).predict(X)
+# sparse random projection (SRP)
+# instance_rp = RP(n_hidden, sparse=True)
+# X_projection_rp = instance_rp.fit(X).predict(X)
+start = time.clock()
+instance_rp = random_projection.SparseRandomProjection(n_components=n_hidden)
+X_projection_rp = instance_rp.fit_transform(X)
+time_rp = time.clock() - start
 
 # PCA
+start = time.clock()
 instance_pca = PCA(n_components=n_hidden)
 X_projection_pca = instance_pca.fit_transform(X)
+time_pca = time.clock() - start
+
+# SPCA
+start = time.clock()
+instance_spca = SparsePCA(n_components=n_hidden)
+X_projection_spca = instance_spca.fit_transform(X)
+time_spca = time.clock() - start
+
+# NMF
+start = time.clock()
+instance_nmf = NMF(n_components=n_hidden, init='random', random_state=0)
+X_projection_nmf = instance_nmf.fit_transform(X)
+time_nmf = time.clock() - start
 
 # ELM-AE
+start = time.clock()
 instance_elm_ae = ELM_AE(n_hidden, activation='sigmoid', sparse=False)
 X_projection_elm_ae = instance_elm_ae.fit(X).predict(X)
+time_elmae = time.clock() - start
 
 # SELM-AE
+start = time.clock()
 instance_selm_ae = ELM_AE(n_hidden, activation='sigmoid', sparse=True)
 X_projection_selm_ae = instance_selm_ae.fit(X).predict(X)
+time_selmae = time.clock() - start
 
 # AE
+start = time.clock()
 instance_ae = Autoencoder(n_hidden, max_iter=max_iter)
 X_projection_ae = instance_ae.fit(X).predict(X)
+time_ae = time.clock() - start
 
 # SAE
+start = time.clock()
 instance_sae = SAE(n_hidden, max_iter=max_iter)
 X_projection_sae = instance_sae.fit(X).predict(X)
+time_sae = time.clock() - start
 
 # EMO-ELM
-instance_emo_elm = EMO_AE_ELM(n_hidden, sparse_degree=0.05, max_iter=max_iter, n_pop=50)
-X_projection_emo_elm = instance_emo_elm.fit(X, X).predict(X)
+start = time.clock()
+instance_emo_elm = EMO_AE_ELM(n_hidden, sparse_degree=0.01, max_iter=max_iter, n_pop=100)
+X_projection_emo_elm = instance_emo_elm.fit(X, X).predict_linear(X)
 # instance_emo_elm.save_evo_result('EMO-ELM-AE-results.npz')
+time_emo_elmae = time.clock() - start
 
 '''
 step 3: classification
@@ -108,22 +140,30 @@ y_train, y_test = y[train_index], y[test_index]
 X_projection_list = [
     X_projection_rp,
     X_projection_pca,
+    X_projection_spca,
+    X_projection_nmf,
     X_projection_elm_ae,
     X_projection_selm_ae,
     X_projection_ae,
     X_projection_sae,
     X_projection_emo_elm]
 
+time_list = [time_rp, time_pca, time_spca, time_nmf, time_elmae, time_selmae, time_ae, time_sae, time_emo_elmae]
+# NMSE_list = [Helper.calculate_NMSE(X, X_) for X_ in X_projection_list]
+print ('------------------------------------')
+print ('time:', time_list)
+print ('------------------------------------')
 classifiers = [
     KNeighborsClassifier(3),
     SVC(kernel="linear", C=10000),
     DecisionTreeClassifier(max_depth=5),
-    BaseELM(50),
+    BaseELM(100),
     GaussianNB()]
 
-baseline_names = ['RP', 'PCA', 'ELM-AE', 'SELM-AE', 'AE', 'SAE', 'EMO-ELM-AE']
+baseline_names = ['RP', 'PCA', 'SPCA', 'NMF', 'ELM-AE', 'SELM-AE', 'AE', 'SAE', 'EMO-ELM-AE']
 classifier_names = ['KNN', 'SVM', 'DT', 'ELM', 'NB']
 results = {}
+
 for i in range(X_projection_list.__len__()):
     print('---------------------------------')
     print('baseline: ', baseline_names[i])
@@ -143,4 +183,4 @@ print (classifier_names)
 for k in baseline_names:
     print (k, '||', results[k])
 # save mapped data
-np.savez('./experimental_results/X_projection.npz', X_proj=np.array(X_projection_list), y=y)
+np.savez('./experimental_results/X_projection.npz', X_proj=np.array(X_projection_list), time=time_list, y=y)
