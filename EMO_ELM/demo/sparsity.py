@@ -66,7 +66,7 @@ X = MinMaxScaler().fit_transform(X)
 ####################################
 #     Loop of feature extraction
 ####################################
-dims = range(5, 101, 5)
+dims = range(5, 51, 5)
 sparsity_outer = []
 for dim in dims:
 
@@ -119,7 +119,7 @@ for dim in dims:
     X_projection_sae = instance_sae.fit(X).predict(X)
 
     # EMO-ELM
-    instance_emo_elm = EMO_AE_ELM(n_hidden, sparse_degree=0.01, max_iter=max_iter, n_pop=100)
+    instance_emo_elm = EMO_AE_ELM(n_hidden, sparse_degree=0.05, max_iter=max_iter, n_pop=100)
     X_projection_emo_elm = instance_emo_elm.fit(X, X).predict(X)
     # instance_emo_elm.save_evo_result('EMO-ELM-AE-results.npz')
 
@@ -139,7 +139,7 @@ for dim in dims:
     sparsity_inner = []
     for X_ in X_projection_list:
         if X_ is not None:
-            sparsity_inner.append(Helper.calculate_sparsity(X_))
+            sparsity_inner.append(Helper.calculate_sparsity(X_))  # Helper.calculate_sparsity(X_)
         else:
             sparsity_inner.append(None)
     sparsity_outer.append(np.asarray(sparsity_inner))

@@ -70,7 +70,7 @@ X = MinMaxScaler().fit_transform(X)
 step 1: set common parameters
 '''
 n_hidden = 2
-max_iter = 2000
+max_iter = 1000
 
 '''
 step 2: train models
@@ -81,56 +81,56 @@ step 2: train models
 start = time.clock()
 instance_rp = random_projection.SparseRandomProjection(n_components=n_hidden)
 X_projection_rp = instance_rp.fit_transform(X)
-time_rp = time.clock() - start
+time_rp = round(time.clock() - start, 3)
 
 # PCA
 start = time.clock()
 instance_pca = PCA(n_components=n_hidden)
 X_projection_pca = instance_pca.fit_transform(X)
-time_pca = time.clock() - start
+time_pca = round(time.clock() - start, 3)
 
 # SPCA
 start = time.clock()
 instance_spca = SparsePCA(n_components=n_hidden)
 X_projection_spca = instance_spca.fit_transform(X)
-time_spca = time.clock() - start
+time_spca = round(time.clock() - start, 3)
 
 # NMF
 start = time.clock()
 instance_nmf = NMF(n_components=n_hidden, init='random', random_state=0)
 X_projection_nmf = instance_nmf.fit_transform(X)
-time_nmf = time.clock() - start
+time_nmf = round(time.clock() - start, 3)
 
 # ELM-AE
 start = time.clock()
 instance_elm_ae = ELM_AE(n_hidden, activation='sigmoid', sparse=False)
 X_projection_elm_ae = instance_elm_ae.fit(X).predict(X)
-time_elmae = time.clock() - start
+time_elmae = round(time.clock() - start, 3)
 
 # SELM-AE
 start = time.clock()
 instance_selm_ae = ELM_AE(n_hidden, activation='sigmoid', sparse=True)
 X_projection_selm_ae = instance_selm_ae.fit(X).predict(X)
-time_selmae = time.clock() - start
+time_selmae = round(time.clock() - start, 3)
 
 # AE
 start = time.clock()
 instance_ae = Autoencoder(n_hidden, max_iter=max_iter)
 X_projection_ae = instance_ae.fit(X).predict(X)
-time_ae = time.clock() - start
+time_ae = round(time.clock() - start, 3)
 
 # SAE
 start = time.clock()
 instance_sae = SAE(n_hidden, max_iter=max_iter)
 X_projection_sae = instance_sae.fit(X).predict(X)
-time_sae = time.clock() - start
+time_sae = round(time.clock() - start, 3)
 
 # EMO-ELM
 start = time.clock()
 instance_emo_elm = EMO_AE_ELM(n_hidden, sparse_degree=0.01, max_iter=max_iter, n_pop=100)
-X_projection_emo_elm = instance_emo_elm.fit(X, X).predict_linear(X)
+X_projection_emo_elm = instance_emo_elm.fit(X, X).predict(X)
 # instance_emo_elm.save_evo_result('EMO-ELM-AE-results.npz')
-time_emo_elmae = time.clock() - start
+time_emo_elmae = round(time.clock() - start, 3)
 
 '''
 step 3: classification
@@ -155,15 +155,15 @@ print ('time:', time_list)
 print ('------------------------------------')
 classifiers = [
     KNeighborsClassifier(3),
-    SVC(kernel="linear", C=10000),
+    SVC(kernel="linear", C=1e4),
     DecisionTreeClassifier(max_depth=5),
-    BaseELM(100),
+    BaseELM(100, C=1e5),
     GaussianNB()]
 
 baseline_names = ['RP', 'PCA', 'SPCA', 'NMF', 'ELM-AE', 'SELM-AE', 'AE', 'SAE', 'EMO-ELM-AE']
 classifier_names = ['KNN', 'SVM', 'DT', 'ELM', 'NB']
-results = {}
-
+# results = {}
+results = []
 for i in range(X_projection_list.__len__()):
     print('---------------------------------')
     print('baseline: ', baseline_names[i])
@@ -173,14 +173,16 @@ for i in range(X_projection_list.__len__()):
     for j in range(classifiers.__len__()):
         clf = classifiers[j]
         clf.fit(X_train, y_train)
-        score = clf.score(X_test, y_test)
+        score = np.round(clf.score(X_test, y_test)*100, 2)
         print('classifier: ', classifier_names[j], ' score:', score)
         result_temp.append(score)
-    results[baseline_names[i]] = result_temp
-
+    # results[baseline_names[i]] = result_temp
+    results.append(np.asarray(result_temp))
+results = np.asarray(results)
 print('-----------------------------------')
 print (classifier_names)
-for k in baseline_names:
-    print (k, '||', results[k])
+print (results)
+# for k in baseline_names:
+#     print (k, '||', results[k])
 # save mapped data
-np.savez('./experimental_results/X_projection.npz', X_proj=np.array(X_projection_list), time=time_list, y=y)
+np.savez('./experimental_results/X_projection.npz', X_proj=np.array(X_projection_list), time=time_list, y=y, score=results)

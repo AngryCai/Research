@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 ########################################
 #  Project Iris data into 2-dim space
 ########################################
-
+#
 # path = 'F:\Python\EMO_ELM\demo\experimental_results\X_projection.npz'
 # p = np.load(path)
 # X_proj, y = p['X_proj'], p['y']
-# baseline_names = ['RP', 'PCA', 'SPCA', 'NMF', 'ELM-AE', 'SELM-AE', 'AE', 'SAE', 'EMO-ELM-AE']
+# baseline_names = ['SRP', 'PCA', 'SPCA', 'NMF', 'ELM-AE', 'SELM-AE', 'AE', 'SAE', 'EMO-ELM-AE']
 # index_1 = np.nonzero(y == 0)
 # index_2 = np.nonzero(y == 1)
 # index_3 = np.nonzero(y == 2)
@@ -39,7 +39,7 @@ baseline_names = ['SRP', 'PCA', 'SPCA', 'NMF', 'ELM-AE', 'SELM-AE', 'AE', 'SAE',
 linestyles = ['-', '--', '-.', ':', '-', '--', '-.', ':', '-']
 filled_markers = ('o', 'v', '^', '<', '>', '8', 's', 'p', 'D')
 
-dims = range(5, 101, 5)
+dims = range(5, 51, 5)
 handles = []
 for i in range(baseline_names.__len__()):
     ax, = plt.plot(dims, sparsity[:, i], linestyle=linestyles[i], lw=2,
