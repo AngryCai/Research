@@ -11,6 +11,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
+from LASSO_ELM import LELM
 
 
 from sklearn.cross_validation import train_test_split
@@ -41,13 +42,13 @@ print(x_test.shape[0], 'test samples')
 # y_train = np_utils.to_categorical(y_train, num_classes)
 # y_test = np_utils.to_categorical(y_test, num_classes)
 
-elm_cv = DeepELM(n_model=1000, n_hidden=10)
+elm_cv = LELM(500, C=1e-8, max_iter=5000)
 elm_cv.fit(x_train, y_train)
 y_pre_elmcv = elm_cv.predict(x_test)
 acc_elmcv = accuracy_score(y_test, y_pre_elmcv)
 print('Ours acc:', acc_elmcv)
 
-elm_base = BaseELM(1000)
+elm_base = BaseELM(500)
 elm_base.fit(x_train, y_train)
 y_pre_elmbase = elm_base.predict(x_test)
 acc_elmbase = accuracy_score(y_test, y_pre_elmbase)
