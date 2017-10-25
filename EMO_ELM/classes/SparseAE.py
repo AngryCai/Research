@@ -22,10 +22,10 @@ class SAE:
     def fit(self, X):
         model = Sequential()
         model.add(Dense(self.n_hidden, input_shape=(X.shape[1], ), activation='sigmoid', name='encode',
-                        activity_regularizer=regularizers.l1(10e-5)))  # self.kl_regularizer #regularizers.l1(0.01)
+                        activity_regularizer=regularizers.l1(l=1e-8)))  # self.kl_regularizer #regularizers.l1(0.01)
         model.add(Dense(X.shape[1], activation='sigmoid'))
         model.compile(optimizer='sgd', loss='mse', metrics=['accuracy'])
-        model.fit(X, X, batch_size=32, epochs=self.max_iter,  verbose=1)
+        model.fit(X, X, batch_size=16, epochs=self.max_iter,  verbose=1)
         self.model = model
         return self
 

@@ -5,6 +5,7 @@ formula:
 Note that it is a linear transformation based on output weights. Where W and b are orthogonal matrices.
 """
 import numpy as np
+from scipy.linalg import orth
 from scipy.special import expit
 
 class ELM_AE(object):
@@ -29,12 +30,14 @@ class ELM_AE(object):
             W = W.reshape(-1)
             # self.W = np.random.uniform(self.lower_bound, self.upper_bound, size=(X.shape[1] + 1, self.n_hidden))
             W[np.random.choice(range(0, W.size), int(1./6. * W.size))] = v1
-            W[np.random.choice(W.nonzero()[0], int(1. / 6. * W.size))] = v2
+            W[np.random.choice(np.nonzero(W == 0.)[0], int(1. / 6. * W.size))] = v2
             W = W.reshape(X.shape[1] + 1, self.n_hidden)
 
         # orthogonalize W and b by QR factorization
-        Q, R = np.linalg.qr(W)
-        self.orth_W = Q
+        if X.shape[1] >= self.n_hidden:
+            self.orth_W = orth(W)
+        else:
+            self.orth_W = orth(W.transpose()).transpose()
         X_ = np.append(X, np.ones((X.shape[0], 1)), axis=1)
         if self.activation == 'sigmoid':
             H = expit(np.dot(X_, self.orth_W))

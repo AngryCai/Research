@@ -10,6 +10,8 @@ from sklearn.metrics import accuracy_score
 # from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.model_selection import ShuffleSplit, KFold
 from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import minmax_scale
+import scipy.interpolate as interpolate
 from Diff_Evo import DiffEvolOptimizer
 from keras.layers import Input, Dense, Lambda, Layer, Activation
 from keras.models import Model
@@ -52,17 +54,21 @@ class EMO_AE_ELM:
         self.X, self.y_bin = X, y
         # # start evolving in MOEA
         num_variables = (self.X.shape[1] + 1) * self.n_hidden
-        algorithm = NSGAII(Objectives(num_variables, 2, self.X, y_bin, self.n_hidden, sparse_degree=self.sparse_degree), population_size=self.n_pop)
+        algorithm = NSGAII(Objectives(num_variables, 2, self.X, y_bin, self.n_hidden,
+                                      sparse_degree=self.sparse_degree), population_size=self.n_pop)
+
+            # MOEAD(Objectives(num_variables, 2, self.X, y_bin, self.n_hidden, sparse_degree=self.sparse_degree),
+            #               population_size=self.n_pop, neighborhood_size=int(self.n_pop/10))  # delta=0.5, eta=0.8
         algorithm.run(self.max_iter)
         self.evo_result = algorithm.result
         print('total solution:', algorithm.result.__len__())
-        result = nondominated(algorithm.result)
-        print('nondominated solution:', result.__len__())
-        self.solution = result
+        nondom_result = nondominated(algorithm.result)
+        print('nondominated solution:', nondom_result.__len__())
+        self.nondom_solution = nondom_result
         self.W = []
         self.B = []
-        for i in range(result.__len__()):
-            s = result[i]
+        for i in range(nondom_result.__len__()):
+            s = nondom_result[i]
             W = np.asarray(s.variables).reshape(self.X.shape[1] + 1, self.n_hidden)
             X_ = np.append(self.X, np.ones((self.X.shape[0], 1)), axis=1)
             H = expit(np.dot(X_, W))
@@ -75,20 +81,20 @@ class EMO_AE_ELM:
         self.W = np.asarray(self.W)
         self.B = np.asarray(self.B)
         # # best W/B
-        best_index = self.get_best_index(self.mu)
+        best_index = self.get_best_index()
         self.best_W = self.W[best_index]
         self.best_B = self.B[best_index]
         return self
 
-    def save_hidden_parameter(self, file_name='moea-hidden-paras'):
+    def save_hidden_parameter(self, file_name):
         """
         save ELM's hidden parameters W which computed according to non-dominanted solution
         :param file_name:
         :return:
         """
-        np.savez(file_name + '.npz', W=self.W, B=self.B)
+        np.savez(file_name, W=self.W, B=self.B)
 
-    def save_evo_result(self, file_name='moea-results.npz'):
+    def save_evo_result(self, file_name):
         """
         save optimized results that contains non-dominanted solution and its objective values
         :param file_name:
@@ -96,43 +102,49 @@ class EMO_AE_ELM:
         """
         objectives = []
         solutions = []
-        for s in self.evo_result:
+        for s in self.nondom_solution:  # self.evo_result
             objectives.append(s.objectives)
             solutions.append(s.variables)
-
         objectives = np.asarray(objectives)
         solutions = np.asarray(solutions)
-        np.savez(file_name, obj=objectives, solution=solutions)
 
-    def get_best_index(self, mu):
+        objectives_ = []
+        solutions_ = []
+        for s in self.evo_result:  # self.evo_result
+            objectives_.append(s.objectives)
+            solutions_.append(s.variables)
+        objectives_ = np.asarray(objectives_)
+        solutions_ = np.asarray(solutions_)
+
+        np.savez(file_name, non_obj=objectives, non_solution=solutions,
+                 all_obj=objectives_, all_solution=solutions_, W=self.W, B=self.B)
+
+    def get_best_index(self):
         """
         get best W according to minimum train error (f2)
         :return:
         """
-        s, v = [], []
-        for so in self.solution:
-            s.append(so.objectives)
-            v.append(so.variables)
-        s = np.asarray(s)
-        v = np.asarray(v)
-        # curvature = self.curvature_splines(s[:, 0], s[:, 1])
-        # index = curvature.argmax()
-        # z = 1. / (s[:, 0] + 10e-8) * mu + 1. / (s[:, 1] + 10e-8) * (1. - mu)
-        ##########
-        # import matplotlib.pyplot as plt
-        # ax = plt.figure()
-        # sub = ax.add_subplot(111)
-        # sub.scatter(s[:, 0], s[:, 1])
-        index = s[:, 0].argmin()
+        # B_norm = []
+        # for B in self.B:
+        #     B_norm.append(np.linalg.norm(B))
+        # index = np.asarray(B_norm).argmin()
+        objectives = []
+        solutions = []
+        for s in self.nondom_solution:  # self.evo_result
+            objectives.append(s.objectives)
+            solutions.append(s.variables)
+        objectives = np.asarray(objectives)
+        solutions = np.asarray(solutions)
+        index = self.curvature_splines(objectives[:, 0], objectives[:, 1])
         print('find minimum solution at index ', index)
         return index
 
-    def predict(self, X):
+    def predict(self, X, W=None):
         X_ = np.append(X, np.ones((X.shape[0], 1)), axis=1)
-        # X_ = X
-        H = expit(np.dot(X_, self.best_W))
-        # H = expit(np.dot(X_, self.best_B.transpose()))
-        # y = np.dot(H, self.best_B)
+        if W is None:
+            H = expit(np.dot(X_, self.best_W))
+        else:
+            H = expit(np.dot(X_, W))
         return H
 
     def predict_linear(self, X):
@@ -160,9 +172,26 @@ class EMO_AE_ELM:
             kl += entr
         return y_, acc, kl, avg_activation
 
-    def get_result(self, key):
-        paras = {'W': self.W, 'B': self.B, 'evo_result': self.evo_result, 'best_W': self.best_W, 'best_B': self.B}
-        return paras[key]
+    def get_result(self):
+        objectives_non = []
+        solutions_non = []
+        for s in self.nondom_solution:  # self.evo_result
+            objectives_non.append(s.objectives)
+            solutions_non.append(s.variables)
+        objectives_non = np.asarray(objectives_non)
+        solutions_non = np.asarray(solutions_non)
+
+        objectives_all = []
+        solutions_all = []
+        for s in self.evo_result:  # self.evo_result
+            objectives_all.append(s.objectives)
+            solutions_all.append(s.variables)
+        objectives_all = np.asarray(objectives_all)
+        solutions_all = np.asarray(solutions_all)
+
+        paras = {'W': self.W, 'B': self.B, 'all_obj': objectives_all,
+                 'all_solution': solutions_all, 'non_obj': objectives_non, 'non_solution': solutions_non}
+        return paras
 
     def __get_error(self, X, y, W, B):
         H = expit(np.dot(X, W))
@@ -170,42 +199,34 @@ class EMO_AE_ELM:
         error = 1.001 - accuracy_score(y, y_)
         return error
 
-    def curvature_splines(self, x, y=None, error=10e-8):
-        """Calculate the signed curvature of a 2D curve at each point
-        using interpolating splines.
-        Parameters
-        ----------
-        x,y: numpy.array(dtype=float) shape (n_points, )
-             or
-             y=None and
-             x is a numpy.array(dtype=complex) shape (n_points, )
-             In the second case the curve is represented as a np.array
-             of complex numbers.
-        error : float
-            The admisible error when interpolating the splines
-        Returns
-        -------
-        curvature: numpy.array shape (n_points, )
-        Note: This is 2-3x slower (1.8 ms for 2000 points) than `curvature_gradient`
-        but more accurate, especially at the borders.
+    def curvature_splines(self, x, y):
         """
-
-        # handle list of complex case
-        if y is None:
-            x, y = x.real, x.imag
-
-        t = np.arange(x.shape[0])
-        std = error * np.ones_like(x)
-
-        fx = UnivariateSpline(t, x, k=4, w=1 / np.sqrt(std))
-        fy = UnivariateSpline(t, y, k=4, w=1 / np.sqrt(std))
-
-        x_1 = fx.derivative(1)(t)
-        x_2 = fx.derivative(2)(t)
-        y_1 = fy.derivative(1)(t)
-        y_2 = fy.derivative(2)(t)
-        curvature = (x_1 * y_2 - y_1 * x_2) / np.power(x_1 ** 2 + y_1 ** 2, 3 / 2)
-        return curvature
+        Finding the knee area by seeking maximal curvature of the curve which is smoothed using B-Spline interpolation.
+        :param x:
+        :param y:
+        :return:
+        """
+        norm_x, norm_y = minmax_scale(x), minmax_scale(y)
+        original_index = norm_x.argsort()
+        xx = norm_x[original_index]
+        yy = norm_y[original_index]
+        # interpolate
+        t, c, k = interpolate.splrep(xx, yy, s=0.05, k=3)
+        N = 200
+        xmin, xmax = norm_x.min(), norm_x.max()
+        fx = np.linspace(xmin, xmax, N)
+        sp = interpolate.interpolate.BSpline(t, c, k, extrapolate=False)
+        fy = sp(fx)
+        # calculate curvature
+        f_2 = sp.derivative(2)(fx)
+        f_1 = sp.derivative(1)(fx)
+        curvature = abs(f_2) / np.power(1. + f_1 ** 2, 3./2.)
+        max_index = curvature.argmax()
+        max_x = fx[max_index]
+        # find the point closet to max_xy in the given solutions
+        index_ = np.abs(max_x - norm_x).argmin()
+        optimal_index = index_  # original_index[index_]
+        return optimal_index
 
 class Objectives(Problem):
     """

@@ -1,39 +1,50 @@
 """
-This file compare random projection(RP), ELM-AE, SELM-AE, AE, PCA and EMO-ELM in terms of sparsity and
-effectiveness of feature extraction.
+This file projects Iris data onto 2-dimensional space
+    'NRP', 'SPCA', 'ELM-AE', 'SELM-AE', 'AE', 'SAE', 'EMO-ELM-AE(f1)', 'EMO-ELM-AE(f2)', 'EMO-ELM-AE(best)'.
 """
 from __future__ import print_function
 
+import time
+
 import numpy as np
-from scipy.io import loadmat
+from sklearn import random_projection
+from sklearn.decomposition import NMF, SparsePCA
 from sklearn.decomposition import PCA
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.svm import SVC, LinearSVC
+from sklearn.svm import LinearSVC
 from sklearn.tree import DecisionTreeClassifier
 
+from EMO_ELM.classes.Helper import Helper
 from EMO_ELM.classes.Autoencoder import Autoencoder
 from EMO_ELM.classes.ELM import BaseELM
 from EMO_ELM.classes.ELM_AE import ELM_AE
 from EMO_ELM.classes.EMO_AE_ELM import EMO_AE_ELM
-from EMO_ELM.classes.RandomProjection import RP
-from EMO_ELM.classes.Helper import Helper
 from EMO_ELM.classes.SparseAE import SAE
 from Toolbox.Preprocessing import Processor
-from sklearn import random_projection
-from sklearn.decomposition import NMF, SparsePCA
+from platypus.algorithms import NSGAII
 from EMO_ELM.classes.ELM_nonlinear_RP import NRP_ELM
-import time
-
+from scipy.io import loadmat
 ############################
 #      prepare data
 ############################
 
 '''
 __________________________________________________________________
-Load UCI data sets
+Load data sets
 '''
+#######   USPS
+# path = 'F:\Python\UCIDataset-matlab\USPSTest.mat'
+# path = 'F:\Matlab\ELM_TIP_codes\USPSTrain.mat'
+# mat = loadmat(path)
+# p = Processor()
+# X, y = mat['P'].astype('float32'), mat['T'].reshape(-1).astype('int8')
+# X = X.transpose()
+# print('data set:', 'USPSTest', 'data size:', X.shape)
+
+
+#######   UCI
 path = 'F:\Python\UCIDataset-matlab\UCI_25.mat'
 mat = loadmat(path)
 keys = mat.keys()
@@ -48,6 +59,7 @@ p = Processor()
 key = 'Iris'
 data = mat[key]
 X, y = data[:, 1:].astype('float32'), data[:, 0].astype('int8')
+print('data set:', key, 'data size:', X.shape)
 
 ''' 
 ___________________________________________________________________
@@ -70,10 +82,9 @@ X = MinMaxScaler().fit_transform(X)
 '''
 step 1: set common parameters
 '''
-n_hidden = 10
+n_hidden = 2
 max_iter = 5000
-
-
+sparsity = 0.05
 
 '''
 step 2: train models
@@ -129,24 +140,18 @@ time_sae = round(time.clock() - start, 3)
 -------------------------
 using pretrained parameters to generate ELM
 """
-model_path = 'F:\Python\EMO_ELM\demo\experimental_results\evo_result\EVO_RES-Indian_pines_corrected-nh=10-iter=5000-rho=0.05-n_pop=50.npz'
-res = np.load(model_path)
-obj = res['non_obj']
-W = res['W']
-B = res['B']
+# EMO-ELM
+instance_emo_elm = EMO_AE_ELM(n_hidden, sparse_degree=sparsity, max_iter=max_iter, n_pop=50)
+X_projection_emo_elm_best = instance_emo_elm.fit(X, X).predict(X)  # default using knee-based decision
 
-# EMO-ELM f1
-instance_emo_elm_f2 = NRP_ELM(n_hidden).fit(X, W=W[obj[:, 0].argmin()])
-X_projection_emo_elm_f1 = instance_emo_elm_f2.predict(X)
+# # min f1/f2 decision
+evo_results__ = instance_emo_elm.get_result()
+non_obj = evo_results__['non_obj']
+f1_index, f2_index = non_obj[:, 0].argmin(), non_obj[:, 1].argmin()
+X_projection_emo_elm_f1 = instance_emo_elm.predict(X, W=evo_results__['W'][f1_index])
+X_projection_emo_elm_f2 = instance_emo_elm.predict(X, W=evo_results__['W'][f2_index])
 
-# EMO-ELM f2
-instance_emo_elm_f2 = NRP_ELM(n_hidden).fit(X, W=W[obj[:, 1].argmin()])
-X_projection_emo_elm_f2 = instance_emo_elm_f2.predict(X)
-
-# EMO-ELM best
-cur, (fx, fy), index = Helper.curvature_splines(obj[:, 0], obj[:, 1], s=0.005, k=3)
-instance_emo_elm_best = NRP_ELM(n_hidden).fit(X, W=W[index[0]])
-X_projection_emo_elm_best = instance_emo_elm_best.predict(X)
+instance_emo_elm.save_evo_result('./experimental_results/Iris_scatter/Evo-results-Iris.npz')
 
 '''
 step 3: classification
@@ -184,7 +189,6 @@ print ('time:', time_list)
 print ('------------------------------------')
 classifiers = [
     KNeighborsClassifier(3),
-    #SVC(kernel="linear", C=1e4),
     LinearSVC(),
     DecisionTreeClassifier(max_depth=5),
     BaseELM(500, C=1e5),
@@ -217,7 +221,11 @@ print (results)
 #     print (k, '||', results[k])
 # save mapped data
 
-result_name = 'X_proj-' + key + '-nh=' + str(n_hidden) + '-iter=' + str(max_iter) + '.npz'
+result_name = 'X_proj-' + key + '-nh=' + str(n_hidden) + '-iter=' + str(max_iter) + '-spar=' + str(sparsity) + '.npz'
+np.savez('./experimental_results/Iris_scatter/' + result_name, X_proj=np.array(X_projection_list),
+         time=time_list, y=y, score=results)
 
-np.savez('./experimental_results/X_projection/' + result_name,
-X_proj=np.array(X_projection_list), time=time_list, y=y, score=results)
+
+
+
+

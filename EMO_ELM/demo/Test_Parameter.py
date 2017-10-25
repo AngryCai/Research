@@ -13,7 +13,7 @@ from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from ELM import BaseELM
-from ExtremeLearningMachine.HE_ELM.Kernel_ELM import KELM
+from ExtremeLearningMachine.CascadeELM.Kernel_ELM import KELM
 from EMO_ELM import EMO_ELM, DE_ELM
 from scipy.io import loadmat
 import numpy as np
@@ -289,112 +289,6 @@ for key in keys:
     results_std[key + '_acc'] = np.asarray(total_acc_std)
 np.savez('iteration_effect_on_acc.npz', mean=np.asarray(results_mean), std=np.asarray(results_std))
 
-
-'''
--------------------------------------------------------
-Plot sparsity+mu effect on accuracy
-'''
-# import numpy as np
-# import matplotlib.pyplot as plt
-# from mpl_toolkits.mplot3d import Axes3D
-# from matplotlib import cm
-# from matplotlib.ticker import LinearLocator, FormatStrFormatter
-#
-# p = 'F:\Python\EvolutionaryAlgorithm\MOEA_ELM\sparsity_level_mu_effect.npz'
-# npz = np.load(p)
-# keys = ['Iris', 'Wine', 'car', 'cotton', 'soybean', 'vowel', 'wdbc', 'yeast', 'zoo']
-# k = 'Wine'
-# test_err = npz['arr_0'][()][k + '_acc'][:, 0]
-#
-# sparsity_level = np.arange(0., 1.05, 0.1)
-# sparsity_level[0] = 0.001
-# mu = np.arange(0., 1.05, 0.1)
-# mu[0] = 0.001
-#
-# X, Y = np.meshgrid(sparsity_level, mu,  indexing='ij')
-# Z = test_err.reshape((sparsity_level.__len__(), mu.__len__()))
-#
-# fig = plt.figure()
-# ax = fig.gca(projection='3d')
-# # Make data.
-# # Plot the surface.
-# surf = ax.plot_surface(X, Y, Z, cmap='jet',
-#                        linewidth=0, antialiased=False)
-# # Customize the z axis.
-# ax.zaxis.set_major_locator(LinearLocator(10))
-# ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-# fig.gca().set_xlabel('Number of units')
-# fig.gca().set_ylabel('Disconnection probability')
-# ax.set_zlabel('Average testing error (%)')
-# # Add a color bar which maps values to colors.
-# fig.colorbar(surf, shrink=0.5, aspect=10)
-# for angle in range(0, 60):
-#     ax.view_init(30, angle)
-#     plt.draw()
-# plt.show()
-
-
-'''
-------------------------------------------------------------
-Plot iteration effect on accuracy for ELM....E-ELM,EMO-ELM
-'''
-# import numpy as np
-# import matplotlib.pyplot as plt
-# p = 'F:\Python\EvolutionaryAlgorithm\MOEA_ELM\iteration_effect_on_acc.npz'
-# m = np.load(p)
-# k = 'Iris'
-# mean = m['mean'][()][k + '_acc']
-# std = m['std'][()][k + '_acc']
-#
-# x = np.arange(0, 501, 50)
-# x[0] = 1
-# fig, ax = plt.subplots()
-# legend = ['ELM', 'KELM', 'Ada-ELM', 'E-ELM', 'EMO-ELM']
-# marker = ['*', '^', 's', 'd', 'o']
-# for i in range(5):
-#     e = ax.errorbar(x, mean[:, i], marker=marker[i], yerr=std[:, i], label=legend[i])
-# ax.set_xlabel('Generation/Iteration')
-# ax.set_ylabel('Average testing accuracy (%)')
-# ax.legend(loc=1)
-
-'''
-------------------------------------------------------------
-Plot sparse degree effect on accuracy for EMO-ELM
-'''
-# import numpy as np
-# import matplotlib.pyplot as plt
-# p = 'F:\Python\EvolutionaryAlgorithm\MOEA_ELM\sparse_degree_effect_on_acc.npz'
-# m = np.load(p)
-# k = 'Iris'
-# mean = m['mean'][()][k + '_acc']
-# std = m['std'][()][k + '_acc']
-#
-# x = np.arange(0, 1., 0.05)
-# x[0] = 0.01
-# fig, ax = plt.subplots()
-# keys = ['Iris', 'Wine', 'wdbc', 'soybean', 'ecoli', 'diabetes']
-# for k in keys:
-#     e = ax.errorbar(x, m['mean'][()][k + '_acc'], yerr=m['std'][()][k + '_acc'])
-# ax.set_xlabel(r'$\rho$')
-# ax.set_ylabel('Average testing accuracy (%)')
-
-
-'''
-------------------------------------------------------------
-Plot iteration effect on convergence/accuracy for EMO-ELM
-'''
-# root = 'F:\Python\EvolutionaryAlgorithm\MOEA_ELM\convergence_acc_pareto_front_'
-# gen = [100, 500, 1000, 2000, 5000]
-# p_acc = 'F:\Python\EvolutionaryAlgorithm\MOEA_ELM\iteration_effect_on_acc.npz'
-# acc_npz = np.load(p_acc)
-# k = 'Iris'
-# fig, ax = plt.subplots()
-# marker = ['*', '^', 's', 'd', 'o']
-# for g in range(gen.__len__()):
-#     m = np.load(root + str(gen[g]) + '.npz')
-#     mean_std = str(acc_npz['mean'][()][k + '_acc'][g]) + r'$\pm$' + str(acc_npz['std'][()][k + '_acc'][g])
-#     e = ax.scatter(m['obj'][:, 0], m['obj'][:, 1], marker=marker[g], label='gen=' + str(gen[g]) + ',' + mean_std)
-# ax.legend(loc=1)
 
 
 

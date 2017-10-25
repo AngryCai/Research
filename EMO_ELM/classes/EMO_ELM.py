@@ -22,7 +22,7 @@ class EMO_ELM:
     upper_bound = 1.
     lower_bound = -1.
 
-    def __init__(self, n_hidden, sparse_degree=0.5, mu=0.5, n_pop=50, max_iter=1000):
+    def __init__(self, n_hidden, sparse_degree=0.05, mu=0.5, n_pop=50, max_iter=1000):
         """
 
         :param n_hidden:
@@ -45,7 +45,7 @@ class EMO_ELM:
         self.X, self.y_bin = X, y_bin
         # # start evolving in MOEA
         num_variables = (self.X.shape[1] + 1) * self.n_hidden
-        algorithm = NSGAII(Objectives(num_variables, 2, self.X, y_bin, self.n_hidden, sparse_degree=self.sparse_degree), population_size=self.n_pop)
+        algorithm = MOEAD(Objectives(num_variables, 2, self.X, y_bin, self.n_hidden, sparse_degree=self.sparse_degree), population_size=self.n_pop, neighborhood_size=5)
         algorithm.run(self.max_iter)
         self.evo_result = algorithm.result
         print('total solution:', algorithm.result.__len__())

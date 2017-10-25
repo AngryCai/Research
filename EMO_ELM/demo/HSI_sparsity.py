@@ -3,6 +3,8 @@ This file test the sparsity of mapped data for
     'RP', 'PCA', 'SPCA', 'NMF', 'ELM-AE', 'SELM-AE', 'AE', 'SAE', 'EMO-ELM-AE'.
 """
 from __future__ import print_function
+# import sys
+# sys.path.extend(['/home/cym/python_codes/'])
 
 import numpy as np
 from scipy.io import loadmat
@@ -23,31 +25,35 @@ from Toolbox.Preprocessing import Processor
 from sklearn import random_projection
 from sklearn.decomposition import NMF, SparsePCA
 from EMO_ELM.classes.Helper import Helper
-
+from EMO_ELM.classes.ELM_nonlinear_RP import NRP_ELM
 
 ############################
 #      prepare data
 ############################
 
+
 '''
 __________________________________________________________________
-Load UCI data sets
+Load HSI data
 '''
-path = 'F:\Python\UCIDataset-matlab\UCI_25.mat'
-mat = loadmat(path)
-keys = mat.keys()
-keys.remove('__version__')
-keys.remove('__header__')
-keys.remove('__globals__')
-keys.sort()
-save_name = 'result.npz'
-# # load data
-# keys=['satellite','segment' ,'soybean','vowel' ,'wdbc','yeast' ,'zoo']
+root = 'F:\\Python\\HSI_Files\\'
+im_, gt_ = 'SalinasA_corrected', 'SalinasA_gt'
+# im_, gt_ = 'Indian_pines_corrected', 'Indian_pines_gt'
+# im_, gt_ = 'KSC', 'KSC_gt'
+
+img_path = root + im_ + '.mat'
+gt_path = root + gt_ + '.mat'
+
+
+print(img_path)
 p = Processor()
-key = 'wdbc'
-data = mat[key]
-X, y = data[:, 1:].astype('float32'), data[:, 0].astype('int8')
-print('data set:', key, 'data size:', X.shape)
+img, gt = p.prepare_data(img_path, gt_path)
+n_row, n_clo, n_bands = img.shape
+print ('img=', img.shape)
+# pca_img = p.pca_transform(n_comp, img.reshape(n_row * n_clo, n_bands)).reshape(n_row, n_clo, n_comp)
+X, y = p.get_correct(img, gt)
+print(X.shape)
+
 ''' 
 ___________________________________________________________________
 Data pre-processing
@@ -66,41 +72,32 @@ X = MinMaxScaler().fit_transform(X)
 ####################################
 #     Loop of feature extraction
 ####################################
-dims = range(5, 51, 5)
+dims = range(10, 301, 10)
 sparsity_outer = []
+X_proj = []
+evo_results = []
 for dim in dims:
 
     '''
     step 1: set common parameters
     '''
     n_hidden = dim
-    max_iter = 2000
+    max_iter = 5000
 
     '''
     step 2: train models
     '''
-    # random projection
-    # instance_rp = RP(n_hidden, sparse=True)
-    # X_projection_rp = instance_rp.fit(X).predict(X)
-    instance_rp = random_projection.SparseRandomProjection(n_components=n_hidden)
-    X_projection_rp = instance_rp.fit_transform(X)
+    # Nonlinear random ELM
+    instance_nrp_elm = NRP_ELM(n_hidden)
+    X_projection_nrp_elm = instance_nrp_elm.fit(X).predict(X)
 
     # PCA
     if dim <= X.shape[1]:
-        instance_pca = PCA(n_components=n_hidden)
-        X_projection_pca = instance_pca.fit_transform(X)
-
         # SPCA
         instance_spca = SparsePCA(n_components=n_hidden)
         X_projection_spca = instance_spca.fit_transform(X)
-
-        # NMF
-        instance_nmf = NMF(n_components=n_hidden, init='random', random_state=0)
-        X_projection_nmf = instance_nmf.fit_transform(X)
     else:
-        X_projection_pca = None
         X_projection_spca = None
-        X_projection_nmf = None
 
     # ELM-AE
     instance_elm_ae = ELM_AE(n_hidden, activation='sigmoid', sparse=False)
@@ -119,20 +116,30 @@ for dim in dims:
     X_projection_sae = instance_sae.fit(X).predict(X)
 
     # EMO-ELM
-    instance_emo_elm = EMO_AE_ELM(n_hidden, sparse_degree=0.05, max_iter=max_iter, n_pop=100)
-    X_projection_emo_elm = instance_emo_elm.fit(X, X).predict(X)
-    # instance_emo_elm.save_evo_result('EMO-ELM-AE-results.npz')
+    instance_emo_elm = EMO_AE_ELM(n_hidden, sparse_degree=0.05, max_iter=max_iter, n_pop=50)
+    X_projection_emo_elm_best = instance_emo_elm.fit(X, X).predict(X)  # default using knee-based decision
+
+    # # min f1/f2 decision
+    evo_results__ = instance_emo_elm.get_result()
+    non_obj = evo_results__['non_obj']
+    f1_index, f2_index = non_obj[:, 0].argmin(), non_obj[:, 1].argmin()
+    X_projection_emo_elm_f1 = instance_emo_elm.predict(X, W=evo_results__['W'][f1_index])
+    X_projection_emo_elm_f2 = instance_emo_elm.predict(X, W=evo_results__['W'][f2_index])
+    evo_results.append(evo_results__)  # # save this loop results
 
     X_projection_list = [
-        X_projection_rp,
-        X_projection_pca,
+        X_projection_nrp_elm,
         X_projection_spca,
-        X_projection_nmf,
         X_projection_elm_ae,
         X_projection_selm_ae,
         X_projection_ae,
         X_projection_sae,
-        X_projection_emo_elm]
+        X_projection_emo_elm_f1,
+        X_projection_emo_elm_f2,
+        X_projection_emo_elm_best
+    ]
+
+    X_proj.append(X_projection_list)  # save X projection
     '''
     step 3: compute sparsity for each X_proj
     '''
@@ -145,7 +152,7 @@ for dim in dims:
     sparsity_outer.append(np.asarray(sparsity_inner))
     print ('dim:', dim, ' L2/L1:', sparsity_inner)
 
-np.savez('./experimental_results/sparsity.npz', sparsity=np.asarray(sparsity_outer))
+np.savez('./experimental_results/sparsity.npz', sparsity=np.asarray(sparsity_outer), X_proj=X_proj, evo_results=evo_results)
 print ('process is done.')
 
 
