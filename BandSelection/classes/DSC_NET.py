@@ -246,7 +246,3 @@ class DSC_BandSelection(object):
         missrate = err_x.astype(float) / (gt_s.shape[0])
         return missrate
 
-
-# data = sio.loadmat('F:\Python\DeepLearning\Tensorflow\Deep-subspace-clustering-networks-master\Data\COIL20.mat')
-# Img = data['fea']
-# Label = data['gnd']

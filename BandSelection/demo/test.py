@@ -35,6 +35,8 @@ if __name__ == '__main__':
     num_class = 5  # how many class we sample
     batch_size_test = n_band
 
+
+
     iter_ft = 0
     ft_times = 50
     display_step = 1
