@@ -247,10 +247,11 @@ class Objectives(Problem):
         """
         X = np.append(self.X, np.ones((self.X.shape[0], 1)), axis=1)
         W = np.asarray(solution.variables).reshape(self.X.shape[1] + 1, self.n_hidden)
-        # ## TODO: obj_1: min RSE
+
         obj1, obj2 = self.obj_func(X, W, n_splits=3)
+        # ## TODO: obj_1: min KL
         solution.objectives[0] = obj1  # self.obj_1(X, W)
-        # ## TODO: obj_2: min KL
+        # ## TODO: obj_2: min RSE
         solution.objectives[1] = obj2
 
     def obj_func(self, X, W, n_splits=3):

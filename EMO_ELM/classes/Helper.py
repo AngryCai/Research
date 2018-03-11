@@ -17,7 +17,7 @@ class Helper:
         :param X:
         :return:
         """
-        return np.linalg.norm(X, ord=2) / np.linalg.norm(X.transpose(), ord=1)  # L1 of X is based on feature dimension
+        return np.sum(np.linalg.norm(X, ord=2, axis=1)) / np.sum(np.linalg.norm(X, ord=1, axis=1)) # L1 of X is based on feature dimension
 
     @staticmethod
     def calculate_NMSE(X, X_hat):

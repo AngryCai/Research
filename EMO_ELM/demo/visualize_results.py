@@ -3,15 +3,16 @@ This file visualize the experimental results.
 """
 import numpy as np
 import matplotlib.pyplot as plt
+from Toolbox.Preprocessing import Processor
 import matplotlib as mpl
 ########################################
 #  Project Iris data into 2-dim space
 ########################################
-#
-# path = 'F:\Python\EMO_ELM\demo\experimental_results\KSC-X_projection-50hidden-5000iter.npz'
+
+# path = 'F:\Python\EMO_ELM\demo\experimental_results\Iris_scatter\X_proj-Iris-nh=2-iter=5000-spar=0.2.npz'
 # p = np.load(path)
 # X_proj, y = p['X_proj'], p['y']
-# baseline_names = ['SRP', 'PCA', 'SPCA', 'NMF', 'ELM-AE', 'SELM-AE', 'AE', 'SAE', 'EMO-ELM-AE']
+# baseline_names = ['NRP', 'SPCA', 'ELM-AE', 'SELM-AE', 'AE', 'SAE', 'EMO-ELM($f_{1}$)', 'EMO-ELM($f_{2}$)', 'EMO-ELM(best)']
 # index_1 = np.nonzero(y == 0)
 # index_2 = np.nonzero(y == 1)
 # index_3 = np.nonzero(y == 2)
@@ -23,17 +24,17 @@ import matplotlib as mpl
 #     s3 = ax.scatter(X_proj[i][index_3, 0], X_proj[i][index_3, 1], marker='s')
 #     # ax.set_title(baseline_names[i])
 #     ax.legend((s1, s2, s3), ('Setosa', 'Versicolour', 'Virginica'), loc=1)
-#     plt.savefig('./experimental_results/Figures/' + baseline_names[i] + '.eps', format='eps', dpi=1000)
+#     # plt.savefig('./experimental_results/Figs/Iris_scatter/' + baseline_names[i] + '.eps', format='eps', dpi=1000)
 # print('Done')
 
 
 ########################################
 #  plot sparsity for different dimension
 ########################################
-"""
-path = './experimental_results/Sparsity-dim-X_proj/SalinasA_corrected-sparsity.npz'
+
+path = './experimental_results/Sparsity-dim-X_proj/Indian_pines-sparsity.npz'
 p = np.load(path)
-sparsity = p['sparsity']
+sparsity = p['sparsity']#p['s']#
 
 baseline_names = ['NRP', 'SPCA', 'ELM-AE', 'SELM-AE', 'AE', 'SAE', 'EMO-ELM($f_{1}$)', 'EMO-ELM($f_{2}$)', 'EMO-ELM(best)']
 
@@ -54,7 +55,7 @@ plt.xlabel('Number of Features')
 plt.ylabel(r'Sparsity ($L_2/L_1$)')
 plt.legend(handles=handles, loc='best')
 print ('Done')
-"""
+
 
 ########################################
 #  plot pareto fronts
@@ -304,7 +305,7 @@ print('Done')
 visualize dim-acc(OA, AA, kappa)
 -----------------------------------------------
 '''
-path = './experimental_results/Acc_dim/SalinasA-dim-acc.npz'
+path = './experimental_results/Acc_dim/KSC-dim-acc.npz'
 p = np.load(path)
 oa_mean, oa_std = np.asarray(p['oa'][0]), np.asarray(p['oa'][1])
 aa_mean, aa_std = np.asarray(p['aa'][0]), np.asarray(p['aa'][1])
@@ -318,14 +319,14 @@ filled_markers = ('o', 'v', '^', '<', '>', '8', 's', 'p', 'D')
 
 dims = range(10, 301, 10)  # KSC=176, SalinasA=204, IndianPine=200
 handles = []
-mean, std = kappa_mean, kappa_std
+mean, std = aa_mean, aa_std
 for i in range(baseline_names.__len__()):
     if i == 1:
-        ax = plt.errorbar(dims[:20], mean[:20, i], yerr=std[:20, i], label=baseline_names[i])
+        ax = plt.errorbar(dims[:17], mean[:17, i], yerr=std[:17, i], label=baseline_names[i])  # 20
     else:
         ax = plt.errorbar(dims, mean[:, i], yerr=std[:, i], label=baseline_names[i], linestyle=linestyles[i], marker=filled_markers[i])
     handles.append(ax)
 plt.xlabel('Number of Features')
-plt.ylabel('Kappa Coefficient')  # Overall Accuracy (%) # Kappa Coefficient # Average Accuracy (%)
+plt.ylabel('Average Accuracy (%)')  # Overall Accuracy (%) # Kappa Coefficient # Average Accuracy (%)
 plt.legend(handles=handles, loc='best')
 print ('Done')

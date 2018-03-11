@@ -2,23 +2,25 @@
 
 # EMP-->KNN-->MajoriryFilter-->(select training samples again)
 #  -->KNN-->MajorityFilter-->... repeat this process
-
+from __future__ import print_function
 import numpy as np
 from Toolbox.rolling_window import rolling_window as rw
 import spectral as spy
+
+
 class Processor:
     def __init__(self):
         pass
 
-    def prepare_data(self,img_path,gt_path):
+    def prepare_data(self, img_path, gt_path):
         if img_path[-3:] == 'mat':
             import scipy.io as sio
             img_mat = sio.loadmat(img_path)
             gt_mat = sio.loadmat(gt_path)
             img_keys = img_mat.keys()
             gt_keys = gt_mat.keys()
-            img_key  = [k for k in img_keys if k != '__version__'and k!= '__header__' and k!='__globals__']
-            gt_key = [k for k in gt_keys if k != '__version__'and k!= '__header__' and k!='__globals__']
+            img_key = [k for k in img_keys if k != '__version__' and k != '__header__' and k != '__globals__']
+            gt_key = [k for k in gt_keys if k != '__version__' and k != '__header__' and k != '__globals__']
             return img_mat.get(img_key[0]).astype('float64'), gt_mat.get(gt_key[0]).astype('int8')
         else:
             import spectral as spy
@@ -56,15 +58,17 @@ class Processor:
         :return: correct image blocks
         """
         # TODO: padding edge with mirror
-        img_padding = np.pad(img, (((block_size[0] - 1) / 2, (block_size[1] - 1) / 2),
-                                   ((block_size[0] - 1) / 2, (block_size[1] - 1) / 2), (0, 0)), 'symmetric')
-        gt_padding = np.pad(gt, (((block_size[0] - 1) / 2, (block_size[1] - 1) / 2),
-                                 ((block_size[0] - 1) / 2, (block_size[1] - 1) / 2)), 'symmetric')
+        w_1, w_2 = int((block_size[0] - 1) / 2), int((block_size[1] - 1) / 2)
+        img_padding = np.pad(img, ((w_1, w_2),
+                                   (w_1, w_2), (0, 0)), 'symmetric')
+        gt_padding = np.pad(gt, ((w_1, w_2),
+                                 (w_1, w_2)), 'symmetric')
         img_blocks = rw(img_padding, block_size, axes=(1, 0))  # divide data into 5x5 blocks
         gt_blocks = rw(gt_padding, block_size, axes=(1, 0))
-        nonzero_index = gt_blocks[:, :, (block_size[0] - 1) / 2, (block_size[0] - 1) / 2].nonzero()
+        i_1, i_2 = int((block_size[0] - 1) / 2), int((block_size[0] - 1) / 2)
+        nonzero_index = gt_blocks[:, :, i_1, i_2].nonzero()
         img_blocks_nonzero = img_blocks[nonzero_index]
-        gt_blocks_nonzero = (gt_blocks[:, :, (block_size[0] - 1) / 2, (block_size[0] - 1) / 2])[nonzero_index]
+        gt_blocks_nonzero = (gt_blocks[:, :, i_1, i_2])[nonzero_index]
         return img_blocks_nonzero, gt_blocks_nonzero
 
     def split_tr_tx(self, X, y, test_size=0.4):
@@ -77,6 +81,21 @@ class Processor:
         """
         from sklearn.cross_validation import train_test_split
         return train_test_split(X, y, test_size=test_size)
+
+    def split_each_class(self, X, y, each_train_size=10):
+        X_tr, y_tr, X_ts, y_ts = [], [], [], []
+        for c in np.unique(y):
+            y_index = np.nonzero(y == c)[0]
+            np.random.shuffle(y_index)
+            cho, non_cho = np.split(y_index, [each_train_size, ])
+            X_tr.append(X[cho])
+            y_tr.append(y[cho])
+            X_ts.append(X[non_cho])
+            y_ts.append(y[non_cho])
+        X_tr, X_ts, y_tr, y_ts = np.asarray(X_tr), np.asarray(X_ts), np.asarray(y_tr), np.asarray(y_ts)
+        return X_tr.reshape(X_tr.shape[0] * X_tr.shape[1], X.shape[1]),\
+               X_ts.reshape(X_ts.shape[0] * X_ts.shape[1], X.shape[1]), \
+               y_tr.flatten(), y_ts.flatten()
 
     def save_experiment(self, y_pre, y_test, file_neme=None, parameters=None):
         """
@@ -105,8 +124,9 @@ class Processor:
                 ca.append(ca_), oa.append(oa_), aa.append(aa_), kappa.append(kappa_)
         else:
             ca, oa, aa, kappa = self.score(y_test, y_pre)
-        np.savez(file_neme, y_test=y_test, y_pre=y_pre, CA=np.array(ca), OA=np.array(oa), AA=aa, Kappa=kappa, param=parameters)
-        print ('the experiments have been saved in experiments/scores.npz')
+        np.savez(file_neme, y_test=y_test, y_pre=y_pre, CA=np.array(ca), OA=np.array(oa), AA=aa, Kappa=kappa,
+                 param=parameters)
+        print('the experiments have been saved in experiments/scores.npz')
 
     # def get_train_test_indexes(self, train_size, gt):
     #     """
@@ -140,7 +160,7 @@ class Processor:
     #         test_indexes = np.append(test_indexes,index_test__)
     #     return train_indexes.astype(np.int64),test_indexes.astype(np.int64)
 
-    def majority_filter(self,classes_map, selems):
+    def majority_filter(self, classes_map, selems):
         """
         :param classes_map: 2 dim image
         :param selems: elements: [disk(1),square(2)...]
@@ -148,10 +168,10 @@ class Processor:
         """
         from skimage.filters.rank import modal
         # from skimage.morphology import disk,square
-        classes_map__ = classes_map.astype(np.uint16) # convert dtype to uint16
+        classes_map__ = classes_map.astype(np.uint16)  # convert dtype to uint16
         out = classes_map__
         for selem in selems:
-            out = modal(classes_map__,selem)
+            out = modal(classes_map__, selem)
             classes_map__ = out
         return out.astype(np.int8)
 
@@ -165,7 +185,6 @@ class Processor:
         from sklearn.metrics import accuracy_score
         '''overall accuracy'''
         oa = accuracy_score(y_test, y_predicted)
-
         '''average accuracy for each class'''
         n_classes = max([np.unique(y_test).__len__(), np.unique(y_predicted).__len__()])
         ca = []
@@ -180,7 +199,7 @@ class Processor:
         kappa = self.kappa(y_test, y_predicted)
         return ca, oa, aa, kappa
 
-    def result2gt(self,y_predicted,test_indexes,gt):
+    def result2gt(self, y_predicted, test_indexes, gt):
         """
 
         :param y_predicted:
@@ -191,9 +210,9 @@ class Processor:
         n_row, n_col = gt.shape
         gt_1D = gt.reshape((n_row * n_col))
         gt_1D[test_indexes] = y_predicted
-        return gt_1D.reshape(n_row,n_col)
+        return gt_1D.reshape(n_row, n_col)
 
-    def extended_morphological_profile(self,components,disk_radius):
+    def extended_morphological_profile(self, components, disk_radius):
         """
 
         :param components:
@@ -203,21 +222,21 @@ class Processor:
         rows, cols, bands = components.shape
         n = disk_radius.__len__()
         import numpy as np
-        emp = np.zeros((rows*cols,bands*(2*n+1)))
-        from skimage.morphology import opening,closing,disk
+        emp = np.zeros((rows * cols, bands * (2 * n + 1)))
+        from skimage.morphology import opening, closing, disk
         for band in range(bands):
-            position = band*(n*2+1) + n
-            emp_ = np.zeros(( rows, cols,2*n+1))
-            emp_[:,:,n] = components[:,:,band]
+            position = band * (n * 2 + 1) + n
+            emp_ = np.zeros((rows, cols, 2 * n + 1))
+            emp_[:, :, n] = components[:, :, band]
             i = 1
             for r in disk_radius:
-                closed = closing(components[:,:,band],selem=disk(r))
-                opened = opening(components[:,:,band],selem=disk(r))
-                emp_[:,:,n-i] = closed
-                emp_[:,:,n+i] = opened
+                closed = closing(components[:, :, band], selem=disk(r))
+                opened = opening(components[:, :, band], selem=disk(r))
+                emp_[:, :, n - i] = closed
+                emp_[:, :, n + i] = opened
                 i += 1
-            emp[:,position-n:position+n+1] = emp_.reshape((rows*cols,2*n+1))
-        return emp.reshape(rows,cols,bands*(2*n+1))
+            emp[:, position - n:position + n + 1] = emp_.reshape((rows * cols, 2 * n + 1))
+        return emp.reshape(rows, cols, bands * (2 * n + 1))
 
     def texture_feature(self, components, theta_arr=None, frequency_arr=None):
         """
@@ -248,7 +267,7 @@ class Processor:
         :param samples: [nb_samples, bands]/or [n_row, n_column, n_bands]
         :return:
         """
-        HSI_or_not = samples.shape.__len__() == 3   # denotes HSI data
+        HSI_or_not = samples.shape.__len__() == 3  # denotes HSI data
         n_row, n_column, n_bands = 0, 0, 0
         if HSI_or_not:
             n_row, n_column, n_bands = samples.shape
@@ -266,7 +285,6 @@ class Processor:
         norm_img = normalize(img.reshape(n_row * n_column, n_bands))
         return norm_img.reshape(n_row, n_column, n_bands)
 
-
     def each_class_OA(self, y_test, y_predicted):
         """
         get each OA for all class respectively
@@ -277,17 +295,17 @@ class Processor:
         classes = np.unique(y_test)
         results = []
         for c in classes:
-            y_c = y_test[np.nonzero(y_test == c)] # find indices of each class
+            y_c = y_test[np.nonzero(y_test == c)]  # find indices of each class
             y_c_p = y_predicted[np.nonzero(y_test == c)]
-            acurracy = self.score(y_c,y_c_p)
+            acurracy = self.score(y_c, y_c_p)
             results.append(acurracy)
         return np.array(results)
 
-    def kappa(self,y_test,y_predicted):
+    def kappa(self, y_test, y_predicted):
         from sklearn.metrics import cohen_kappa_score
-        return round(cohen_kappa_score(y_test,y_predicted),3)
+        return round(cohen_kappa_score(y_test, y_predicted), 3)
 
-    def color_legend(self,color_map,label):
+    def color_legend(self, color_map, label):
         """
 
         :param color_map: 1-n color map in range 0-255
@@ -298,8 +316,8 @@ class Processor:
         import matplotlib.pyplot as plt
         size = len(label)
         patchs = []
-        m = 255.#float(color_map.max())
-        color_map_ = (color_map/m)[1:]
+        m = 255.  # float(color_map.max())
+        color_map_ = (color_map / m)[1:]
         for i in range(0, size):
             patchs.append(mpatches.Patch(color=color_map_[i], label=label[i]))
         # plt.legend(handles=patchs)
@@ -316,7 +334,7 @@ class Processor:
             X_test_index = np.append(X_test_index, index_c[n_labeled:])
         return X_train_index, X_test_index
 
-    def save_res_4kfolds_cv(self, y_pres, y_tests, file_name='scores.npz'):
+    def save_res_4kfolds_cv(self, y_pres, y_tests, file_name=None, verbose=False):
         """
         save experiment results for k-folds cross validation
         :param y_pres: predicted labels, k*Ntest
@@ -326,11 +344,34 @@ class Processor:
         """
         ca, oa, aa, kappa = [], [], [], []
         for y_p, y_t in zip(y_pres, y_tests):
-            ca_, oa_, aa_, kappa_ = self.score(y_p, y_t)
-            ca.append(ca_), oa.append(oa_), aa.append(aa_), kappa.append(kappa_)
-        np.savez(file_name, y_test=y_tests, y_pre=y_pres, CA=np.array(ca), OA=np.array(oa), AA=aa, Kappa=kappa)
-        print ('the experiments have been saved in ', file_name)
+            ca_, oa_, aa_, kappa_ = self.score(y_t, y_p)
+            ca.append(np.asarray(ca_)), oa.append(np.asarray(oa_)), aa.append(np.asarray(aa_)),
+            kappa.append(np.asarray(kappa_))
+        ca = np.asarray(ca) * 100
+        oa = np.asarray(oa) * 100
+        aa = np.asarray(aa) * 100
+        kappa = np.asarray(kappa)
+        ca_mean, ca_std = np.round(ca.mean(axis=0), 2), np.round(ca.std(axis=0), 2)
+        oa_mean, oa_std = np.round(oa.mean(), 2), np.round(oa.std(), 2)
+        aa_mean, aa_std = np.round(aa.mean(), 2), np.round(aa.std(), 2)
+        kappa_mean, kappa_std = np.round(kappa.mean(), 3), np.round(kappa.std(), 3)
+        if file_name is not None:
+            file_name = 'scores.npz'
+            np.savez(file_name, y_test=y_tests, y_pre=y_pres,
+                     ca_mean=ca_mean, ca_std=ca_std,
+                     oa_mean=oa_mean, oa_std=oa_std,
+                     aa_mean=aa_mean, aa_std=aa_std,
+                     kappa_mean=kappa_mean, kappa_std=kappa_std)
+            print('the experiments have been saved in ', file_name)
 
+        if verbose is True:
+            print('---------------------------------------------')
+            print('ca\t\t', '\taa\t\t', '\toa\t\t', '\tkappa\t\t')
+            print(ca_mean, '+-', ca_std)
+            print(aa_mean, '+-', aa_std)
+            print(oa_mean, '+-', oa_std)
+            print(kappa_mean, '+-', kappa_std)
+        return ca, oa, aa, kappa
 
     # def view_clz_map(self, gt, y_index, y_predicted, save_path=None, show_error=False):
     #     """
@@ -400,7 +441,8 @@ class Processor:
             writer.writerow([aa_mean, aa_std])
             writer.writerow([kappa_mean, kappa_std])
 
-    def view_clz_map_spyversion4single_img(self, gt, y_index, y_predicted, save_path=None, show_error=False, show_axis=False):
+    def view_clz_map_spyversion4single_img(self, gt, y_index, y_predicted, save_path=None, show_error=False,
+                                           show_axis=False):
         """
         view HSI classification results
         :param gt:

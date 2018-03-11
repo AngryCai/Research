@@ -100,7 +100,7 @@ for dim in range(20):
     mean = np.asarray(acc_).mean()
     acc.append(mean)
 
-np.savez('./Exp/dim_acc-.npz', acc=acc)
+np.savez('./Experiment/dim_acc-.npz', acc=acc)
 
 # clf = [
 #     LinearSVC(),
@@ -118,9 +118,9 @@ np.savez('./Exp/dim_acc-.npz', acc=acc)
 
 
 import matplotlib.pyplot as plt
-a = np.load('./Exp/dim_acc-.npz')
+a = np.load('./Experiment/dim_acc-.npz')
 acc = a['acc']
 plt.plot(range(20), acc)
 plt.show()
-plt.savefig('./Exp/dim_acc-.eps', dpi=1000)
+plt.savefig('./Experiment/dim_acc-.eps', dpi=1000)
 print 'Done'

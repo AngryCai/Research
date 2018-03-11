@@ -38,6 +38,10 @@ class ELM_AE(object):
             self.orth_W = orth(W)
         else:
             self.orth_W = orth(W.transpose()).transpose()
+
+        while self.orth_W.shape[1] < self.n_hidden:
+            self.orth_W = np.hstack((self.orth_W, np.zeros((self.orth_W.shape[0], 1))))
+
         X_ = np.append(X, np.ones((X.shape[0], 1)), axis=1)
         if self.activation == 'sigmoid':
             H = expit(np.dot(X_, self.orth_W))

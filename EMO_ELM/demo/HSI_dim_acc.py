@@ -8,8 +8,8 @@ from EMO_ELM.classes.ELM_nonlinear_RP import NRP_ELM
 from Toolbox.Preprocessing import Processor
 
 p = Processor()
-path = './experimental_results/Sparsity-dim-X_proj/SalinasA_corrected-sparsity.npz'
-path_ = './experimental_results/X_projection/X_proj-SalinasA_corrected-nh=10-iter=5000.npz'
+path = './experimental_results/Sparsity-dim-X_proj/KSC-sparsity.npz'
+path_ = './experimental_results/X_projection/X_proj-KSC-nh=10-iter=5000.npz'
 
 npz = np.load(path)
 X_total = npz['X_proj']
@@ -18,6 +18,7 @@ y = np.load(path_)['y']
 # ------------
 # remove samples whose number is very small for IndianPines
 # ------------
+
 y = p.standardize_label(y)
 
 baseline_names = ['NRP', 'SPCA', 'ELM-AE', 'SELM-AE', 'AE', 'SAE', 'EMO-ELM($f_1$)', 'EMO-ELM($f_2$)', 'EMO-ELM(best)']
@@ -58,5 +59,26 @@ for dim in range(30):
     aa_mean.append(aa_mean_), aa_std.append(aa_std_)
     oa_mean.append(oa_mean_), oa_std.append(oa_std_)
     kappa_mean.append(kappa_mean_), kappa_std.append(kappa_std_)
-np.savez('./experimental_results/Acc_dim/SalinasA-dim-acc.npz', oa=(oa_mean, oa_std), aa=(aa_mean, aa_std), kappa=(kappa_mean, kappa_std))
+np.savez('./experimental_results/Acc_dim/KSC-dim-acc.npz', oa=(oa_mean, oa_std), aa=(aa_mean, aa_std), kappa=(kappa_mean, kappa_std))
 print ('DONE')
+
+
+
+'''
+---------------------------------
+sparsity measure 
+---------------------------------
+'''
+
+# sparsity = []
+# for dim in range(30):
+#     X_dim = X_total[dim]
+#     ss = []
+#     for j in range(X_dim.shape[0]):
+#         if X_dim[j] is None:
+#             s = None
+#         else:
+#             s = np.sum(np.linalg.norm(X_dim[j], ord=2, axis=1)) / np.sum(np.linalg.norm(X_dim[j], ord=1, axis=1))
+#         ss.append(s)
+#     sparsity.append(ss)
+# np.savez('F:\Python\EMO_ELM\demo\experimental_results\Sparsity-dim-X_proj\Spa-KSC-sum.npz', s=sparsity)

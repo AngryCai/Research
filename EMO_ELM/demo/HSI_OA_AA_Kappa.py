@@ -11,20 +11,20 @@ from EMO_ELM.classes.ELM_nonlinear_RP import NRP_ELM
 from Toolbox.Preprocessing import Processor
 
 p = Processor()
-path = 'F:\Python\EMO_ELM\demo\experimental_results\X_projection\X_proj-Indian_pines_corrected-nh=10-iter=5000.npz'
-npz = np.load(path)
-X = npz['X_proj']
+path_1 = 'F:\Python\EMO_ELM\demo\experimental_results\X_projection\X_proj-Indian_pines_corrected-nh=10-iter=5000.npz'
+path_2 = 'F:\Python\EMO_ELM\demo\experimental_results\Sparsity-dim-X_proj\Indian_pines-sparsity.npz'
+npz = np.load(path_1)
+X = np.load(path_2)['X_proj'][2]
 y = npz['y']
 time = npz['time']
 print(time.tolist())
 # ------------
 # remove samples whose number is very small for IndianPines
 # ------------
-# a = (y != 0) * (y != 3) * (y != 6) * (y != 8) * (y != 14) * (y != 15)
-# index = np.nonzero(a)
-# X = X[:, index, :].reshape(9, index[0].shape[0], X.shape[2])
-# y = y[index]
-# y = p.standardize_label(y)
+for c in np.unique(y):
+    if np.nonzero(y == c)[0].shape[0] < 250:
+        y = np.delete(y, np.nonzero(y == c))
+y = p.standardize_label(y)
 
 """
 =================
